@@ -51,6 +51,7 @@ import org.apache.commons.compress.utils.IOUtils;
  * @see DataFileReader
  */
 public class DataFileWriter<D> implements Closeable, Flushable {
+  private boolean useBlocking = false;
   private Schema schema;
   private DatumWriter<D> dout;
 
@@ -76,7 +77,12 @@ public class DataFileWriter<D> implements Closeable, Flushable {
 
   /** Construct a writer, not yet open. */
   public DataFileWriter(DatumWriter<D> dout) {
+    this(dout, false);
+  }
+
+  public DataFileWriter(DatumWriter<D> dout, boolean useBlocking) {
     this.dout = dout;
+    this.useBlocking = useBlocking;
   }
 
   private void assertOpen() {
@@ -243,7 +249,11 @@ public class DataFileWriter<D> implements Closeable, Flushable {
     dout.setSchema(schema);
     buffer = new NonCopyingByteArrayOutputStream(
         Math.min((int)(syncInterval * 1.25), Integer.MAX_VALUE/2 -1));
-    this.bufOut = efactory.binaryEncoder(buffer, null);
+    if (useBlocking) {
+      this.bufOut = efactory.blockingBinaryEncoder(buffer, null);
+    } else {
+      this.bufOut = efactory.binaryEncoder(buffer, null);
+    }
     if (this.codec == null) {
       this.codec = CodecFactory.nullCodec().createInstance();
     }
